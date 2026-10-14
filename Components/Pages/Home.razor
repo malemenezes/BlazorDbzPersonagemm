@@ -1,0 +1,99 @@
+@page "/"
+@rendermode InteractiveServer
+@using BlazorDbzPersonagem.Models
+@inject HttpClient Http
+
+<PageTitle>Personagem Dragon Ball</PageTitle>
+
+<h1>Buscar Personagem</h1>
+
+<div class="d-flex gap-2 mb-4" style="max-width: 400px;">
+    <input type="number" class="form-control" min="1" placeholder="Digite o id do personagem"
+           @bind="id" @bind:event="oninput" @onkeyup="BuscarAoPressionarEnter" />
+    <button class="btn btn-primary" @onclick="BuscarPersonagem" disabled="@carregando">
+        Buscar
+    </button>
+</div>
+
+@if (carregando)
+{
+    <p><em>Carregando...</em></p>
+}
+else if (erro is not null)
+{
+    <div class="alert alert-danger">@erro</div>
+}
+else if (personagem is not null)
+{
+    <h2>Informações do Personagem</h2>
+
+    <p><strong>Nome:</strong> @personagem.Nome</p>
+
+    <p><strong>Planeta de Origem:</strong> @(personagem.Planeta?.Nome ?? "Desconhecido")</p>
+
+    <h3>Transformações:</h3>
+
+    @if (personagem.Transformacoes.Count == 0)
+    {
+        <p>Este personagem não possui transformações.</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var transformacao in personagem.Transformacoes)
+            {
+                <li>@transformacao.Nome</li>
+            }
+        </ul>
+    }
+}
+
+@code {
+    private int? id;
+    private Personagem? personagem;
+    private string? erro;
+    private bool carregando;
+
+    private async Task BuscarPersonagem()
+    {
+        personagem = null;
+        erro = null;
+
+        if (id is null or < 1)
+        {
+            erro = "Informe um id válido (número maior que zero).";
+            return;
+        }
+
+        carregando = true;
+
+        try
+        {
+            var resposta = await Http.GetAsync($"characters/{id}");
+
+            if (!resposta.IsSuccessStatusCode)
+            {
+                erro = $"Personagem com id {id} não encontrado.";
+                return;
+            }
+
+            personagem = await resposta.Content.ReadFromJsonAsync<Personagem>();
+        }
+        catch (HttpRequestException ex)
+        {
+            erro = $"Erro ao acessar a API do Dragon Ball: {ex.Message}";
+        }
+        finally
+        {
+            carregando = false;
+        }
+    }
+
+    private async Task BuscarAoPressionarEnter(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await BuscarPersonagem();
+        }
+    }
+}
